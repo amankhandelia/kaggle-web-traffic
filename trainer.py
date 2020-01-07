@@ -468,22 +468,24 @@ def train(name, hparams, multi_gpu=False, n_models=1, train_completeness_thresho
                     forward_eval_pipe = None
         avg_sgd = asgd_decay is not None
         #asgd_decay = 0.99 if avg_sgd else None
-        train_model = Model(pipe, hparams, is_train=True, graph_prefix=prefix, asgd_decay=asgd_decay, seed=seed)
-        scope.reuse_variables()
+        with tf.variable_scope('model') as scope:
+            train_model = Model(pipe, hparams, is_train=True, graph_prefix=prefix, asgd_decay=asgd_decay, seed=seed)
+#         scope.reuse_variables()
+        with tf.variable_scope('model', reuse=True) as scope:
+            eval_stages = []
+            if side_split:
 
-        eval_stages = []
-        if side_split:
-            side_eval_model = Model(side_eval_pipe, hparams, is_train=False,
-                                    #loss_mask=np.concatenate([np.zeros(50, dtype=np.float32), np.ones(10, dtype=np.float32)]),
-                                    seed=seed)
-            eval_stages.append((Stage.EVAL_SIDE, side_eval_model))
-            if avg_sgd:
-                eval_stages.append((Stage.EVAL_SIDE_EMA, side_eval_model))
-        if forward_split:
-            forward_eval_model = Model(forward_eval_pipe, hparams, is_train=False, seed=seed)
-            eval_stages.append((Stage.EVAL_FRWD, forward_eval_model))
-            if avg_sgd:
-                eval_stages.append((Stage.EVAL_FRWD_EMA, forward_eval_model))
+                side_eval_model = Model(side_eval_pipe, hparams, is_train=False,
+                                        #loss_mask=np.concatenate([np.zeros(50, dtype=np.float32), np.ones(10, dtype=np.float32)]),
+                                        seed=seed)
+                eval_stages.append((Stage.EVAL_SIDE, side_eval_model))
+                if avg_sgd:
+                    eval_stages.append((Stage.EVAL_SIDE_EMA, side_eval_model))
+            if forward_split:
+                forward_eval_model = Model(forward_eval_pipe, hparams, is_train=False, seed=seed)
+                eval_stages.append((Stage.EVAL_FRWD, forward_eval_model))
+                if avg_sgd:
+                    eval_stages.append((Stage.EVAL_FRWD_EMA, forward_eval_model))
 
         if write_summaries:
             summ_path = f"{logdir}/{name}_{index}"
