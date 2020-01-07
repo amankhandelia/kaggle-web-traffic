@@ -34,7 +34,7 @@ def read_all() -> pd.DataFrame:
     """
     def read_file(file):
         df = read_cached(file).set_index('Page')
-        df.columns = df.columns.astype('M8[D]')
+        df.columns = pd.to_datetime(df.columns).floor('D')
         return df
 
     # Path to cached data
